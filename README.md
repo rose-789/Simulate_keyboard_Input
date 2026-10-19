@@ -1,3 +1,39 @@
+# 大括号兼容修复版（Windows）
+
+基于 [freezeLUO/Simulate_keyboard_Input](https://github.com/freezeLUO/Simulate_keyboard_Input) 的 Fork，保留原作者历史。
+
+**修复版下载：[default_fixed.exe](./default_fixed.exe)**。原来的“模拟键盘输入小工具.exe”为上游旧版本。
+
+## 修复内容与使用
+
+逐字输入代码时，目标编辑器可能在输入 `{` 后自动补出 `}`。换行后这些补全字符会残留，导致代码越长，多余右括号越多。
+
+1. 启动 `default_fixed.exe`，填入完整代码。
+2. 勾选“兼容自动补全大括号”。
+3. **先清空目标编辑区**，再使用倒计时或 `Ctrl+Alt+S` 开始输入。
+
+此选项默认关闭。开启后，每次输入 `{`，等待至少 50 毫秒，再发送 Delete 清理光标后自动补出的右括号；原代码中的 `}` 仍按原文输入。
+
+**适用边界：**此模式不会读取目标文本，要求从空白编辑区开始输入；在已有代码中间使用可能删除光标后的字符。普通文本框请保持关闭。自动缩进、引号与其他括号的自动补全不在本次修复范围；目标补全响应慢时可增大字符间隔。
+
+## 验证与构建
+
+- `python -m pytest -q`：14 项测试通过，包含旧问题复现、600 个代码块、多层嵌套、普通模式保留已有文本、无补全目标及 GUI 输入线程的模式选择。
+- 打包后的 EXE 已启动并检查界面；尚未在所有编辑器或网站中验证。
+- Windows 构建环境：Python 3.13.12、PyInstaller 6.19.0。
+
+```powershell
+python -m pip install pytest pyinstaller
+python -m pytest -q
+python -m PyInstaller --noconfirm --clean --onefile --windowed --name default_fixed "模拟键盘输入小工具.py"
+```
+
+`default_fixed.exe` 的 SHA-256：`73F1248D7CB6DA136F7A09B9CA0017D65C8D477EF6DBBA235E8F1108C9183E92`。
+
+---
+
+## 上游项目说明
+
 **代码输出注意**：现代编辑器在输入python时会自动进行tab对齐代码，请关闭自动格式化的功能！
 
 # 键盘输入模拟器

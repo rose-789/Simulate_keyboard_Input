@@ -78,6 +78,7 @@ class SendInputController:
         self.VK_RETURN = 0x0D  # Enter
         self.VK_TAB = 0x09
         self.VK_HOME = 0x24
+        self.VK_DELETE = 0x2E
         
         # 字符到虚拟键码和是否需要Shift的映射
         # 这个映射可以根据需要扩展
@@ -154,6 +155,21 @@ class SendInputController:
             self._send_input_event(
                 0, self.KEYEVENTF_UNICODE | self.KEYEVENTF_KEYUP, code_unit
             )
+
+    def type_code_char(self, char, delay=0.01, remove_auto_brace=False):
+        """Emit source text into an empty editor, removing auto-inserted braces.
+
+        Compatibility mode assumes the caret is at the end of the user's text.
+        Any auto-inserted closing brace is removed immediately, before Enter can
+        move it onto another line. The original closing brace is still emitted
+        normally. Delete is harmless at the end if the editor did not auto-close
+        this particular opening brace (for example, inside a comment).
+        """
+        self.type_char(char, delay)
+        if remove_auto_brace and char == "{":
+            # Give the target time to process its character/completion handlers.
+            time.sleep(max(delay, 0.05))
+            self.type_key(self.VK_DELETE, min(delay, 0.01))
 
     @contextmanager
     def pressed(self, *vk_codes):
@@ -323,6 +339,19 @@ class KeyboardSimulator:
         )
         self.newline_mode_combobox.current(0)
         self.newline_mode_combobox.pack(side=LEFT, padx=(0, 5))
+
+        # Compatibility is explicit: sending Delete into existing text is unsafe.
+        self.brace_compat_var = BooleanVar(value=False)
+        self.brace_compat_check = ttk.Checkbutton(
+            params_frame, text="兼容自动补全大括号（输入前请清空目标编辑区）",
+            variable=self.brace_compat_var, style='TCheckbutton'
+        )
+        self.brace_compat_check.pack(anchor="w", pady=(5, 0))
+        ttk.Label(
+            params_frame,
+            text="勾选后清理自动补出的 }；普通文本框请保持关闭。",
+            background="#f0f0f0"
+        ).pack(anchor="w", pady=(0, 5))
 
         # ---------------- 控制按钮区域 ----------------
         controls_frame = Frame(main_frame, bg="#f0f0f0")
@@ -620,6 +649,9 @@ class KeyboardSimulator:
         self.progress['value'] = 0
 
         newline_mode = self.newline_mode_var.get()
+        remove_auto_brace = self.brace_compat_var.get()
+        # Freeze the mode for this run, even if the user changes other settings.
+        self.brace_compat_check.config(state=DISABLED)
 
         def do_newline():
             if newline_mode == "普通使用Enter换行":
@@ -662,7 +694,7 @@ class KeyboardSimulator:
                         if char == "\n":
                             do_newline()
                         else:
-                            keyboard.type_char(char, char_delay)
+                            keyboard.type_code_char(char, char_delay, remove_auto_brace)
 
                         self.window.after(0, self.progress.step, 1)
                         time.sleep(char_delay)
@@ -686,6 +718,7 @@ class KeyboardSimulator:
         self.simulation_active = False
         self.button_start.config(state=NORMAL)
         self.button_stop.config(state=DISABLED)
+        self.brace_compat_check.config(state=NORMAL)
         self.progress['value'] = 0
 
     def report_input_error(self, error):
@@ -758,9 +791,9 @@ def run_application(
     window = None
     try:
         window = create_window()
-        window.title("模拟键盘输入 (SendInput底层版)")
-        window.geometry("700x600")
-        window.minsize(700, 600)
+        window.title("模拟键盘输入（大括号兼容修复版）")
+        window.geometry("760x700")
+        window.minsize(760, 700)
         create_app(window)
         if enter_mainloop is None:
             window.mainloop()
